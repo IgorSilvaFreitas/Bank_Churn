@@ -1,4 +1,4 @@
-#Base de dadps
+#Base de dados
 dados <- readr::read_csv("GitHub/Churn XGBoost/churn.csv")
 
 ##CredtiScore

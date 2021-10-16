@@ -1,4 +1,4 @@
-#Funçãoo para o Modelo Machine Learning de Bank Churn
+#Função para o Modelo Machine Learning de Bank Churn
 
 dados <- read_csv("C:/Users/Igor/Documents/GitHub/Churn XGBoost/churn.csv")
 
@@ -26,7 +26,7 @@ desafio <- function(dados){
   ##Tratamentos iniciais
   dados <- as.data.frame(dados)
   
-  Cliente <- dados[,1]
+  Cliente <- dados[,2]
   
   dados <- dados[,-c(1,2,3)]
   
@@ -53,7 +53,6 @@ desafio <- function(dados){
 }
 
 
-#coloque dados=nome do seu banco de dados, o retorno ser? a matrix de confus?o, que cont?m as estimativas necess?rias.
-dados <- dados[1:1000,]
+#Retornando id do cliente e se ele irá ou não cancelar
 desafio(dados)
-ggplot(dados, aes(x=Geography))+geom_bar()
+

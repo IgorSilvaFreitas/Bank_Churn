@@ -1,4 +1,4 @@
-#Base de dadps
+#Base de dados
 library(readr)
 dados <- read_csv("GitHub/Churn XGBoost/churn.csv")
 
