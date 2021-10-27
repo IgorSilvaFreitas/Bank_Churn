@@ -1,6 +1,6 @@
 #Base de dados
 library(readr)
-dados <- read_csv("GitHub/Churn XGBoost/churn.csv")
+dados <- read_csv("C:/Users/Igor/Documents/GitHub/Churn XGBoost/XGBoost_Bank_Churn/churn.csv")
 
 
 #Excluindo coluna com número da linha
@@ -8,6 +8,9 @@ dados <- dados[,-1]
 
 
 #O número de id do cliente não deve afetar o modelo, então será excluída também
+dados <- dados[,-1]
+
+#Excluir o último nome do cliente
 dados <- dados[,-1]
 
 #Verificando classes das variáveis
@@ -35,110 +38,32 @@ cont_dad[1,2]-cont_dad[2,2]
 #A variável é desbalanceada
 
 
-#Balanceando
-
-#1- Transformar todas as variáveis em numéricas
-aux <- dados |> distinct(Surname)
-#Essa variável em específico possuí 2932 categorias diferentes, porém a base de dados possui 10mil observações,
-#então essa variável será excluída
-
-dados <- dados[,-1]
-aux2 <- dados |> distinct(Geography)
-#0-France, 1-Spain, 2-Germany
-
-aux3 <- dados |> distinct(Gender)
-#0-Female, 1-Male
-
-dados <- dados |> mutate(Geography = factor(Geography, levels = c("France","Spain","Germany"), labels = c(0,1,2)),
-                         Gender = factor(Gender, levels = c("Female","Male"),labels = c(0,1)))
-
-
-
-
-
-#2- Balanceando os dados
-library(imbalance)
-dados <- as.data.frame(dados)
-reb <- mwmote(dados, numInstances = 5926, classAttr = "Exited")
-
-dados2 <- rbind(dados, reb)
-
-#3- analisando se o balanceamento está correto
-cont_dad2 <- dados2 |>
-  count(Exited)
-
-cont_dad2 |> ggplot(aes(x=Exited, y=n))+
-  geom_bar(stat="identity",
-           fill="black") +
-  geom_text(aes(label = n), 
-            vjust=-0.5)
-
-
 #Transformando variáveis para fator quando necessário
 
-#Devido ao balanceamento, as "observações" geradas pela função vieram número quebrados
-for (i in 10000:length(dados2$CreditScore)){
-  if(dados2$Geography[i] < 1.5){
-    dados2$Geography[i] <- 1
-  }else if(dados2$Geography[i] < 2.5){
-    dados2$Geography[i] <- 2
-  }else {dados2$Geography[i] <- 3}
-}
-
-for (i in 10000:length(dados2$CreditScore)){
-  if(dados2$Gender[i] < 1.5){
-    dados2$Gender[i] <- 1
-  }else {dados2$Gender[i] <- 2}
-}
-
-for (i in 10000:length(dados2$CreditScore)){
-  if(dados2$HasCrCard[i] < 1.5){
-    dados2$HasCrCard[i] <- 1
-  }else {dados2$HasCrCard[i] <- 2}
-}
-
-for (i in 10000:length(dados2$CreditScore)){
-  if(dados2$IsActiveMember[i] < 1.5){
-    dados2$IsActiveMember[i] <- 1
-  }else {dados2$IsActiveMember[i] <- 2}
-}
-
-for (i in 10000:length(dados2$CreditScore)){
-  if(dados2$Exited[i] < 1.5){
-    dados2$Exited[i] <- 1
-  }else {dados2$Exited[i] <- 2}
-}
-
-for (i in 10000:length(dados2$NumOfProducts)){
-  if(dados2$NumOfProducts[i] < 1.5){
-    dados2$NumOfProducts[i] <- 1
-  }else if(dados2$NumOfProducts[i] < 2.5){
-    dados2$NumOfProducts[i] <- 2
-  }else if(dados2$NumOfProducts[i] < 3.5){
-    dados2$NumOfProducts[i] <- 3
-    }else {dados2$NumOfProducts[i] <- 4}
-}
 
 #fatorizando
-dados2 <- dados2 |> dplyr::mutate(Geography = factor(Geography, levels = c(1,2,3), labels = c("France","Spain","Germany")),
-                         Gender = factor(Gender,levels = c(1,2), labels = c("Female","Male")))
 
-dados2$Geography <- as.factor(dados2$Geography)
-dados2$Gender <- as.factor(dados2$Gender)
-dados2$NumOfProducts <- as.factor(dados2$NumOfProducts)
-dados2$HasCrCard <- as.factor(dados2$HasCrCard)
-dados2$IsActiveMember <- as.factor(dados2$IsActiveMember)
-dados2$Exited <- as.factor(dados2$Exited)
+dados$Geography <- as.factor(dados$Geography)
+dados$Gender <- as.factor(dados$Gender)
+dados$NumOfProducts <- as.factor(dados$NumOfProducts)
+dados$HasCrCard <- as.factor(dados$HasCrCard)
+dados$IsActiveMember <- as.factor(dados$IsActiveMember)
+dados$Exited <- as.factor(dados$Exited)
 
 
 #Pré processamentos
 
 #Separando em amostras treino e teste para verificação de métricas
 library(caret)
-data <- caret::createDataPartition(y=dados2$Exited, p=0.75, list = F)
+data <- caret::createDataPartition(y=dados$Exited, p=0.75, list = F)
 
-treino <- dados2[data,]
-teste <- dados2[-data,]
+treino <- dados[data,]
+teste <- dados[-data,]
+
+#Balanceando amostra treino
+treino <- downSample(x=treino[,-11],y=treino$Exited)
+treino <- treino |> rename(Exited=Class)
+table(treino$Exited)
 
 
 #Exlcuindo variáveis que possuem baixa variabilidade, e por isso, provavelmente não terá relevância
@@ -189,10 +114,10 @@ accuracy <- result$overall[1]
 precision <- result$byClass[1]
 recall <- result$byClass[2]
 f1 <- result$byClass[7]
-#Acurácia = 0.8998
-#sensibilidade = 0.9372
-#specificidade(recall) = 0.8624
-#F1 = 0.9034
+#Acurácia = 0.7787115
+#sensibilidade = 0.7864322
+#specificidade(recall) = 0.7485265
+#F1 = 0.8498507
 
 
 
@@ -203,7 +128,11 @@ modelo_linear <- caret::train(Exited~ ., data=treino, method="svmLinear",trContr
 preditor2 <- predict(modelo_linear, teste)
 
 #Estimando o erro fora da amostra
-caret::confusionMatrix(preditor2,teste$Exited)
+result2 <- caret::confusionMatrix(preditor2,teste$Exited)
+accuracy2 <- result2$overall[1]
+precision2 <- result2$byClass[1]
+recall2 <- result2$byClass[2]
+f1.2 <- result2$byClass[7]
 #Métricas inferiores ao xgboost
 
 ?specificity()
@@ -214,23 +143,60 @@ modelo_rpart <- caret::train(Exited~ ., data=treino, method="rpart",trControl=co
 preditor3 <- predict(modelo_rpart, teste)
 
 #Estimando o erro fora da amostra
-caret::confusionMatrix(preditor3,teste$Exited)
-#Métricas inferiores ao xgboost
+result3 <- caret::confusionMatrix(preditor3,teste$Exited)
+accuracy3 <- result3$overall[1]
+precision3 <- result3$byClass[1]
+recall3 <- result3$byClass[2]
+f1.3 <- result3$byClass[7]
 
 
 # Modelo completo (logito)
 modelo_logit <- glm(Exited ~., data = treino, family = binomial("logit"))
 
 #Aplicando o modelo na amostra Teste
-preditor4 <- predict(modelo_rpart, teste)
+preditor4 <- predict(modelo_logit, teste)
 
 #Estimando o erro fora da amostra
-caret::confusionMatrix(preditor4,teste$Exited)
+result4 <- caret::confusionMatrix(preditor4,teste$Exited)
+accuracy4 <- result4$overall[1]
+precision4 <- result4$byClass[1]
+recall4 <- result4$byClass[2]
+f1.4 <- result4$byClass[7]
 #Métricas inferiores ao xgboost
 
 
+#Modelo randomforest
+modelo_rf <- caret::train(Exited~ ., data=treino, method="rf", ntree=500,trControl=controle)
+modelo_rf
 
+
+#Aplicando o modelo na amostra Teste
+preditor <- predict(modelo_rf, teste)
+
+#Estimando o erro fora da amostra
+result5 <- caret::confusionMatrix(preditor,teste$Exited)
+accuracy5 <- result5$overall[1]
+precision5 <- result5$byClass[1]
+recall5 <- result5$byClass[2]
+f15 <- result5$byClass[7]
+
+
+#Tempo para cada modelo
+modelo_xgb$times
+modelo_linear$times
+modelo_rpart$times
+modelo_rf$times
+
+
+#O objetivo é melhor a eficácia de encontrar quem tem maior tendência ao churn,
+#por isso o modelo escolhido será aquele com melhor recall e com o menor tempo
+recall
+recall2
+recall3
+recall4
+recall5
+#O modelo escolhido será o support vector machine
 
 
 ##Salvando objetos necessários para predição
-save(preproc4, preproc5, controle, modelo_xgb, file="bankchurn.RData")
+save(preproc4, preproc5, controle, modelo_linear, file="bankchurn.RData")
