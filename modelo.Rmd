@@ -1,0 +1,262 @@
+
+```{r}
+## Importando Base de dados
+library(readr)
+dados <- read_csv("churn.csv")
+dados
+```
+```{r}
+## Excluindo variáveis RowNumber, CustomerId e Surname, pois elas não devem influenciar
+## o modelo, são apenas identificadores do cliente
+dados <- dados[,-c(1:3)]
+dados
+```
+```{r}
+## Analisando categorias das variáveis
+str(dados)
+
+```
+```{r}
+## Análise de dados faltantes
+library(naniar)
+gg_miss_var(dados)
+# Não há missings
+```
+
+```{r}
+## Analisando variável target
+library(ggplot2)
+dados |> ggplot(aes(x=Exited))+
+  geom_bar()
+#Há um desbalanceamento das classes, o balanceamento em casos de churn é necessário,
+#pois o modelo deve ser capaz de errar o minimo possível os clientes propensos a churn.
+```
+```{r}
+## Análises individuais das variáveis auxiliares
+
+# CreditScore
+dados |> ggplot(aes(x=CreditScore))+
+  geom_histogram()
+
+#Geography, na França há o drobro de cliente se comparado a Alemanha e Espanha
+dados |> ggplot(aes(x=Geography))+
+  geom_bar()
+
+#Gender, há apenas uma leve diferença, onde há mais cliente homens
+dados |> ggplot(aes(x=Gender))+
+  geom_bar()
+
+#Age, boa parte dos cliente possui entre 25 e 50 anos
+dados |> ggplot(aes(x=Age))+
+  geom_histogram()
+
+#Tenure, são diversificadas, obtendo seu ponto central em 5
+dados |> ggplot(aes(x=Tenure))+
+  geom_boxplot()
+
+#Balance, há uma enorme quantidade de cliente com a conta zerada
+library(scales)
+dados |> ggplot(aes(x=Balance))+
+  geom_histogram()+
+  scale_x_continuous(labels= scales::comma)
+
+#NumberOfProducts, a variabilidade está concentra em 1 ou 2 produtos, poucos clientes
+#possuem 3 ou mais produtos
+dados |> ggplot(aes(x=NumOfProducts))+
+  geom_bar()
+
+#HasCrCard, A maioria dos clientes possuem cartão de crédito
+dados |> ggplot(aes(x=HasCrCard))+
+  geom_bar()
+
+#IsActiveMember, igualmente distribuido
+dados |> ggplot(aes(x=IsActiveMember))+
+  geom_bar()
+
+#EstimatedSalary, a maioria dos cliente tem sálario entre 50 e 150 mil
+dados |> ggplot(aes(y=EstimatedSalary))+
+  geom_boxplot()
+
+
+```
+
+```{r}
+## Análise cruzada, do target com os auxiliares
+
+# CreditScore, clientes que possuem baixo creditscore possuem maior tendência a 
+# cometer chuurn
+dados |> ggplot(aes(fill=as.factor(Exited),x=CreditScore))+
+  geom_histogram()
+
+#Geography, Cliente alemães, proporcianalmente, tem maior tendência a cometer churn
+dados |> ggplot(aes(fill=as.factor(Exited),x=Geography))+
+  geom_bar()
+
+#Gender, não parece influenciar no churn
+dados |> ggplot(aes(fill=as.factor(Exited),x=Gender))+
+  geom_bar()
+
+#Age, pessoas mais velhas aparentam ser mais sucetíveis ao churn
+dados |> ggplot(aes(fill=as.factor(Exited),x=Age))+
+  geom_histogram()
+
+#Tenure, cliente que cometem churn aparentam dar notas mais próximas de 5
+dados |> ggplot(aes(fill=as.factor(Exited),y=Tenure))+
+  geom_boxplot()
+
+#Balance, não parece influenciar
+library(scales)
+dados |> ggplot(aes(fill=as.factor(Exited),x=Balance))+
+  geom_histogram()+
+  scale_x_continuous(labels= scales::comma)
+
+#NumberOfProducts, aparentemente quanto menos produtos maior a probabilidade de cometer
+# churn
+dados |> ggplot(aes(fill=as.factor(Exited),x=NumOfProducts))+
+  geom_bar()
+
+#HasCrCard, proporcionalmente não parece influenciar no churn
+dados |> ggplot(aes(fill=as.factor(Exited),x=HasCrCard))+
+  geom_bar()
+
+#IsActiveMember, aparentemente clientes não ativos tem uma tendência levemente maior
+# à cometer churn do que cliente ativos.
+dados |> ggplot(aes(fill=as.factor(Exited),x=IsActiveMember))+
+  geom_bar()
+
+#EstimatedSalary, não aparenta haver diferença
+dados |> ggplot(aes(fill=as.factor(Exited),y=EstimatedSalary))+
+  geom_boxplot()
+
+
+```
+```{r}
+library(caret)
+
+#Criando variáveis dummies para Geography e Gender
+dummy1 <- dummyVars(~ ., dados, fullRank = T)
+dados <- predict(dummy1, dados)
+dados <- as.data.frame(dados)
+dados
+
+```
+
+```{r}
+## Separando em amostra treino e teste
+sep <- caret::createDataPartition(y=dados$Exited, p=0.75, list = F)
+
+treino <- dados[sep,]
+teste <- dados[-sep,]
+```
+
+```{r}
+## Balanceando amostra treino
+library(dplyr)
+treino$Exited <- as.factor(treino$Exited)
+treino <- downSample(x=treino[,-12],y=treino$Exited)
+treino <- treino |> rename(Exited=Class)
+table(treino$Exited)
+```
+```{r}
+## Verificando a existência de variáveis que possuem baixa variabilidade
+nearZeroVar(treino, names=T)
+# assim como observado nas análises, nenhuma variável possui baixa variabilidade
+
+```
+```{r}
+## Verificando a existência de variáveis que são correlacionadas
+preProcess(treino, method = c("corr"))
+#Não há variáveis correlacionadas
+
+```
+```{r}
+## Verificando a existência de variáveis que são combinações lineares uma das outras
+findLinearCombos(treino)
+#Não há variveis cl
+
+```
+```{r}
+## Transformando dummies em fator
+treino$GeographyGermany <- as.factor(treino$GeographyGermany)
+treino$GeographySpain <- as.factor(treino$GeographySpain)
+treino$GenderMale <- as.factor(treino$GenderMale)
+treino$HasCrCard <- as.factor(treino$HasCrCard)
+treino$IsActiveMember <- as.factor(treino$IsActiveMember)
+
+
+teste$GeographyGermany <- as.factor(teste$GeographyGermany)
+teste$GeographySpain <- as.factor(teste$GeographySpain)
+teste$GenderMale <- as.factor(teste$GenderMale)
+teste$HasCrCard <- as.factor(teste$HasCrCard)
+teste$IsActiveMember <- as.factor(teste$IsActiveMember)
+teste$Exited <- as.factor(teste$Exited)
+```
+
+```{r}
+## Tratando NA's, não é o caso aqui, porém iremos adicionar NA's pra caso em outra
+## amostra possua valores faltantes
+treino[1,c(1:6)] <- NA
+treino[2,c(7:11)] <- NA
+
+# o método knnimpute já padroniza as variáveis
+impute <- preProcess(treino, method = c("knnImpute"))
+treino <- predict(impute, treino)
+teste <- predict(impute, teste)
+
+library(mlr)
+impute_fator <- mlr::impute(treino, target = "Exited",
+                          cols = list(GeographyGermany = mlr::imputeLearner("classif.rpart"),
+                                      GeographyGermany = mlr::imputeLearner("classif.rpart"),
+                                      GenderMale = mlr::imputeLearner("classif.rpart"),
+                                      HasCrCard = mlr::imputeLearner("classif.rpart"),
+                                      IsActiveMember = mlr::imputeLearner("classif.rpart")))
+#teste <- mlr::reimpute(teste, impute_fator$desc)
+treino <- impute_fator$data
+treino
+```
+
+
+```{r}
+## criação do modelo xgb
+set.seed(100)
+controle <- caret::trainControl(method="repeatedcv", 
+                                number=10, repeats=3)
+
+
+modelo_xgb <- caret::train(Exited~ ., data=treino, method="xgbLinear",trControl=controle)
+
+
+#Aplicando o modelo na amostra Teste
+preditor <- predict(modelo_xgb, teste)
+
+#Estimando o erro fora da amostra
+result <- caret::confusionMatrix(preditor,teste$Exited)
+result$overall[1]
+result$byClass[1]
+result$byClass[2]
+result$byClass[7]
+#Acurácia = 0.774
+#sensibilidade = 0.7823912
+#specificidade(recall) = 0.740519
+#F1 = 0.8470079
+```
+```{r}
+#Modelo Support vector machine
+modelo_linear <- caret::train(Exited~ ., data=treino, method="svmLinear",trControl=controle)
+
+#Aplicando o modelo na amostra Teste
+preditor2 <- predict(modelo_linear, teste)
+
+#Estimando o erro fora da amostra
+result2 <- caret::confusionMatrix(preditor2,teste$Exited)
+result2$overall[1]
+result2$byClass[1]
+result2$byClass[2]
+result2$byClass[7]
+#Acurácia = 0.73
+#sensibilidade = 0.7298649 
+#specificidade(recall) = 0.7305389
+#F1 = 0.8121347
+
+```
+
