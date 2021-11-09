@@ -100,7 +100,7 @@ dados |> ggplot(aes(fill=as.factor(Exited),x=Gender))+
 dados |> ggplot(aes(fill=as.factor(Exited),x=Age))+
   geom_histogram()
 
-#Tenure, cliente que cometem churn aparentam dar notas mais próximas de 5
+#Tenure, cliente que cometem churn aparentam ter Tenure mais próximas de 5
 dados |> ggplot(aes(fill=as.factor(Exited),y=Tenure))+
   geom_boxplot()
 
@@ -138,6 +138,12 @@ dummy1 <- dummyVars(~ ., dados, fullRank = T)
 dados <- predict(dummy1, dados)
 dados <- as.data.frame(dados)
 dados
+
+```
+```{r}
+library(corrplot)
+## Matriz de correlação
+corrplot(cor(dados), method ='number')
 
 ```
 
